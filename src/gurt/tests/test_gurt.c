@@ -21,6 +21,7 @@
 #include <gurt/dlog.h>
 #include <gurt/hash.h>
 #include <gurt/atomic.h>
+#include <gurt/rbt.h>
 #include "mocks_gurt.h"
 
 /* machine epsilon */
@@ -2694,6 +2695,120 @@ test_d_rank_range_list_str(void **state)
 	d_rank_range_list_free(range_list);
 }
 
+static int
+rbt_cmp_key(const void *key1, const void *key2)
+{
+	return *(int*)key1 - *(int*)key2;
+}
+
+static void
+rbt_free_key(void *key)
+{
+	D_FREE(key);
+}
+
+static void
+rbt_free_data(void *data)
+{
+	D_FREE(data);
+}
+
+static void
+rbt_print_record(const void *key, const void *data)
+{
+	if (key != NULL)
+		printf("0x%03x", *(int*)key);
+	else
+		printf("NA");
+	if (data != NULL)
+		printf(":0x%04x", *(int*)data);
+	else
+		printf(":NA%*s", 4, "");
+}
+
+static void
+test_rbt(void **state)
+{
+	struct d_rbt *rbt;
+	int           rc;
+	int           idx;
+
+	rc = d_rbt_create(&rbt, rbt_cmp_key, rbt_free_key, rbt_free_data);
+	assert_int_equal(rc, -DER_SUCCESS);
+	for (idx = 0; idx < 0xffff; idx++) {
+		int  key;
+		int *data;
+
+		key = rand() % 0xfff;
+		data = NULL;
+		rc = d_rbt_find((void**)&data, rbt, &key);
+		if (rc == -DER_SUCCESS) {
+			int *key_tmp;
+
+			assert_non_null(data);
+			assert_int_not_equal(*data, idx);
+
+			rc = d_rbt_insert(rbt, &key, data, false);
+			assert_int_equal(rc, -DER_EXIST);
+
+			D_ALLOC(key_tmp, sizeof(int));
+			*key_tmp = key;
+			D_ALLOC(data, sizeof(int));
+			*data = idx;
+			rc = d_rbt_insert(rbt, key_tmp, data, true);
+			assert_int_equal(rc, -DER_SUCCESS);
+
+			data = NULL;
+			rc = d_rbt_find((void**)&data, rbt, &key);
+			assert_int_equal(rc, -DER_SUCCESS);
+			assert_non_null(data);
+			assert_int_equal(*data, idx);
+		} else {
+			int *key_tmp;
+
+			D_ALLOC(key_tmp, sizeof(int));
+			*key_tmp = key;
+			D_ALLOC(data, sizeof(int));
+			*data = idx;
+			rc = d_rbt_insert(rbt, key_tmp, data, false);
+			assert_int_equal(rc, -DER_SUCCESS);
+
+			data = NULL;
+			rc = d_rbt_find((void**)&data, rbt, &key);
+			assert_int_equal(rc, -DER_SUCCESS);
+			assert_non_null(data);
+			assert_int_equal(*data, idx);
+		}
+		assert_true(d_rbt_is_ordered(rbt));
+		assert_true(d_rbt_get_black_height(rbt) > 0);
+
+		key = rand() % 0xfff;
+		data = NULL;
+		rc = d_rbt_find((void**)&data, rbt, &key);
+		if (rc == -DER_SUCCESS) {
+			assert_non_null(data);
+
+			rc = d_rbt_delete(rbt, &key, true);
+			assert_int_equal(rc, -DER_SUCCESS);
+
+			data = NULL;
+			rc = d_rbt_find((void**)&data, rbt, &key);
+			assert_int_equal(rc, -DER_NONEXIST);
+			assert_null(data);
+		} else {
+			assert_null(data);
+
+			rc = d_rbt_delete(rbt, &key, true);
+			assert_int_equal(rc, -DER_NONEXIST);
+		}
+		assert_true(d_rbt_is_ordered(rbt));
+		assert_true(d_rbt_get_black_height(rbt) > 0);
+	}
+	d_rbt_print(rbt, rbt_print_record);
+
+	d_rbt_destroy(rbt, true);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -2733,7 +2848,8 @@ main(int argc, char **argv)
 	    cmocka_unit_test(test_d_setenv),
 	    cmocka_unit_test(test_d_rank_list_to_str),
 	    cmocka_unit_test(test_d_rank_range_list_create_from_ranks),
-	    cmocka_unit_test(test_d_rank_range_list_str)};
+	    cmocka_unit_test(test_d_rank_range_list_str),
+	    cmocka_unit_test(test_rbt)};
 
 	d_register_alt_assert(mock_assert);
 
