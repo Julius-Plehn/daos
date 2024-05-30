@@ -1,5 +1,5 @@
 //
-// (C) Copyright 2019-2023 Intel Corporation.
+// (C) Copyright 2019-2024 Intel Corporation.
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 //
@@ -303,6 +303,7 @@ type metricsCmd struct {
 // metricsListCmd provides a list of metrics available from the requested DAOS servers.
 type metricsListCmd struct {
 	baseCmd
+	cfgCmd
 	cmdutil.JSONOutputCmd
 	singleHostCmd
 	Port uint32 `short:"p" long:"port" default:"9191" description:"Telemetry port on the host"`
@@ -318,6 +319,8 @@ func (cmd *metricsListCmd) Execute(args []string) error {
 	req := new(control.MetricsListReq)
 	req.Port = cmd.Port
 	req.Host = host
+	req.AllowInsecure = cmd.cfgCmd.config.TelemetryConfig.AllowInsecure
+	req.CaCertPath = cmd.cfgCmd.config.TelemetryConfig.CARootPath
 
 	if !cmd.JSONOutputEnabled() {
 		cmd.Info(getConnectingMsg(req.Host, req.Port))
@@ -357,6 +360,7 @@ func getConnectingMsg(host string, port uint32) string {
 // metricsQueryCmd collects the requested metrics from the requested DAOS servers.
 type metricsQueryCmd struct {
 	baseCmd
+	cfgCmd
 	cmdutil.JSONOutputCmd
 	singleHostCmd
 	Port    uint32 `short:"p" long:"port" default:"9191" description:"Telemetry port on the host"`
@@ -373,6 +377,8 @@ func (cmd *metricsQueryCmd) Execute(args []string) error {
 	req := new(control.MetricsQueryReq)
 	req.Port = cmd.Port
 	req.Host = host
+	req.AllowInsecure = cmd.cfgCmd.config.TelemetryConfig.AllowInsecure
+	req.CaCertPath = cmd.cfgCmd.config.TelemetryConfig.CARootPath
 	req.MetricNames = common.TokenizeCommaSeparatedString(cmd.Metrics)
 
 	if !cmd.JSONOutputEnabled() {
