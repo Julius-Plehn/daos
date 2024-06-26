@@ -1,5 +1,5 @@
 """
-  (C) Copyright 2018-2023 Intel Corporation.
+  (C) Copyright 2018-2024 Intel Corporation.
 
   SPDX-License-Identifier: BSD-2-Clause-Patent
 """
@@ -1030,6 +1030,67 @@ class YamlCommand(SubProcessCommand):
                 self._command, ", ".join(names))
             for line in get_file_listing(hosts, names).stdout_text.splitlines():
                 self.log.debug("  %s", line)
+
+    def copy_telemetry_certificates(self, source, hosts):
+        """Copy certificates files from the source to the destination hosts.
+
+        Args:
+            source (str): source of the certificate files.
+            hosts (NodeSet): list of the destination hosts.
+        """
+        names = set()
+        yaml = self.yaml.telemetry_config
+        while yaml is not None and hasattr(yaml, "other_params"):
+            if hasattr(yaml, "get_certificate_data"):
+                self.log.debug("Copying certificates for %s:", self._command)
+                data = yaml.get_certificate_data(
+                    yaml.get_attribute_names(LogParameter))
+                for name in data:
+                    create_directory(
+                        hosts, name, verbose=False, raise_exception=False)
+                    for file_name in data[name]:
+                        src_file = os.path.join(source, file_name)
+                        dst_file = os.path.join(name, file_name)
+                        self.log.debug("  %s -> %s", src_file, dst_file)
+                        result = distribute_files(
+                            hosts, src_file, dst_file, mkdir=False,
+                            verbose=False, raise_exception=False, sudo=True,
+                            owner=self.certificate_owner)
+                        if result.exit_status != 0:
+                            self.log.info(
+                                "    WARNING: %s copy failed on %s:\n%s",
+                                dst_file, hosts, result)
+                    names.add(name)
+            yaml = yaml.other_params
+
+        # debug to list copy of cert files
+        if names:
+            self.log.debug(
+                "Copied certificates for %s (in %s):",
+                self._command, ", ".join(names))
+            for line in get_file_listing(hosts, names).stdout_text.splitlines():
+                self.log.debug("  %s", line)
+
+    def generate_telemetry_certificates(self, hosts):
+        """Generate the certificates for the test.
+
+        Args:
+            hosts (NodeSet): list of the destination hosts.
+        """
+        if not self.yaml.telemetry_config.allow_insecure:
+            certgen_dir = os.path.abspath(
+                os.path.join("..", "..", "..", "..", "lib64", "daos", "certgen"))
+
+            command = os.path.join(certgen_dir, "gen_telemetry_certificates.sh")
+            command = "sudo " + command + " " + "/etc/daos/certs/"
+            self.log.debug("Generating the telemetry certificates command %s:", command)
+            result = run_pcmd(hosts, command, 30)
+            if result[0]['exit_status'] != 0:
+                self.fail("Generating the telemetry certificates command Failed")
+            else:
+                self.log.info("Generating the telemetry certificates command Passed")
+
+        return 0
 
     def copy_configuration(self, hosts):
         """Copy the yaml configuration file to the hosts.
