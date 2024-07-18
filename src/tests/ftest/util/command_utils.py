@@ -1081,7 +1081,7 @@ class YamlCommand(SubProcessCommand):
         Args:
             hosts (NodeSet): list of the destination hosts.
         """
-        if not self.yaml.telemetry_config.allow_insecure:
+        if not self.yaml.telemetry_config.allow_insecure.value:
             certgen_dir = os.path.abspath(
                 os.path.join("..", "..", "..", "..", "lib64", "daos", "certgen"))
 
