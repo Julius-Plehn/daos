@@ -247,7 +247,7 @@ class DaosServerManager(SubprocessManager):
         # Copy certificates
         self.manager.job.copy_certificates(get_log_file("daosCA/certs"), self._hosts)
         self.manager.job.copy_telemetry_certificates(get_log_file("daosCA/private"), self._hosts)
-        self.manager.job.generate_telemetry_certificates(self._hosts)
+        self.manager.job.generate_telemetry_certificates(self._hosts, "daos_server")
         self._prepare_dmg_certificates()
 
         # Prepare dmg for running storage format on all server hosts

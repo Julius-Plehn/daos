@@ -1075,7 +1075,7 @@ class YamlCommand(SubProcessCommand):
             for line in get_file_listing(hosts, names).stdout_text.splitlines():
                 self.log.debug("  %s", line)
 
-    def generate_telemetry_certificates(self, hosts):
+    def generate_telemetry_certificates(self, hosts, user):
         """Generate the certificates for the test.
 
         Args:
@@ -1086,7 +1086,7 @@ class YamlCommand(SubProcessCommand):
                 os.path.join("..", "..", "..", "..", "lib64", "daos", "certgen"))
 
             command = os.path.join(certgen_dir, "gen_telemetry_certificates.sh")
-            command = "sudo " + command + " " + "/etc/daos/certs/"
+            command = "sudo " + command + " " + "/etc/daos/certs/ " + user
             self.log.debug("Generating the telemetry certificates command %s:", command)
             result = run_pcmd(hosts, command, 30)
             if result[0]['exit_status'] != 0:

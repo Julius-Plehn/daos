@@ -21,6 +21,7 @@ CA_HOME=$1
 CERTS="${CA_HOME}/certs"
 PRIVATE="${CA_HOME}"
 HOSTNAME=$(hostname -s)
+USER=$2
 
 function print_usage () {
     >&2 echo "$__usage"
@@ -49,7 +50,7 @@ function generate_server_cert () {
     echo "Generating Server Certificate"
     # Generate Private key and set its permissions
     openssl genrsa -out "${CA_HOME}/telemetryserver.key" 2048
-    [[ $EUID -eq 0 ]] && chown daos_server.daos_server "${CA_HOME}/telemetryserver.key"
+    [[ $EUID -eq 0 ]] && chown ${USER}.${USER} "${CA_HOME}/telemetryserver.key"
     chmod 0400 "${CA_HOME}/telemetryserver.key"
 
     # Generate a Certificate Signing Request (CRS)
@@ -61,7 +62,7 @@ function generate_server_cert () {
         -CAkey "${PRIVATE}/daosCA.key" -CAcreateserial -out "${CA_HOME}/telemetryserver.crt" \
         -days ${DAYS} -sha256 -extfile "$CA_HOME/telemetry.cnf" -extensions v3_ext
 
-    [[ $EUID -eq 0 ]] && chown daos_server.daos_server "${CA_HOME}/telemetryserver.crt"
+    [[ $EUID -eq 0 ]] && chown ${USER}.${USER} "${CA_HOME}/telemetryserver.crt"
     chmod 0644 "${CA_HOME}/telemetryserver.crt"
 
     echo "Required Server Certificate Files:

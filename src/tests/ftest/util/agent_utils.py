@@ -1,5 +1,5 @@
 """
-  (C) Copyright 2019-2023 Intel Corporation.
+  (C) Copyright 2019-2024 Intel Corporation.
 
   SPDX-License-Identifier: BSD-2-Clause-Patent
 """
@@ -8,7 +8,8 @@ import re
 import socket
 from getpass import getuser
 
-from agent_utils_params import DaosAgentTransportCredentials, DaosAgentYamlParameters
+from agent_utils_params import (DaosAgentTelemtryCredentials, DaosAgentTransportCredentials,
+                                DaosAgentYamlParameters)
 from ClusterShell.NodeSet import NodeSet
 from command_utils import CommandWithSubCommand, SubprocessManager, YamlCommand
 from command_utils_base import (CommandWithParameters, CommonConfig, EnvironmentVariables,
@@ -53,6 +54,7 @@ def get_agent_command(group, cert_dir, bin_dir, config_file, config_temp=None):
     transport_config = DaosAgentTransportCredentials(cert_dir)
     common_config = CommonConfig(group, transport_config)
     config = DaosAgentYamlParameters(config_file, common_config)
+    config.telemetry_config = DaosAgentTelemtryCredentials(cert_dir)
     command = DaosAgentCommand(bin_dir, config)
     if config_temp:
         # Setup the DaosAgentCommand to write the config file data to the
@@ -267,6 +269,9 @@ class DaosAgentManager(SubprocessManager):
         # Copy certificates
         self.manager.job.copy_certificates(
             get_log_file("daosCA/certs"), self._hosts)
+        self.manager.job.copy_telemetry_certificates(
+            get_log_file("daosCA/private"), self._hosts)
+        self.manager.job.generate_telemetry_certificates(self._hosts, "daos_agent")
 
         # Verify the socket directory exists when using a non-systemctl manager
         self.verify_socket_directory(getuser())

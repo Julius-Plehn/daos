@@ -5,7 +5,8 @@
 """
 import os
 
-from command_utils_base import BasicParameter, LogParameter, TransportCredentials, YamlParameters
+from command_utils_base import (BasicParameter, LogParameter, TelemetryCredentials,
+                                TransportCredentials, YamlParameters)
 
 
 class DaosAgentTransportCredentials(TransportCredentials):
@@ -30,6 +31,44 @@ class DaosAgentTransportCredentials(TransportCredentials):
             DaosAgentTransportCredentials: a new DaosAgentTransportCredentials object
         """
         return DaosAgentTransportCredentials(self._log_dir)
+
+
+class DaosAgentTelemtryCredentials(TelemetryCredentials):
+    # pylint: disable=too-few-public-methods
+    """Telemetry credentials listing certificates for secure communication."""
+
+    def __init__(self, log_dir=os.path.join(os.sep, "tmp")):
+        """Initialize a TelemetryConfig object."""
+        super().__init__("/run/agent_config/telemetry_config/*", None, log_dir)
+
+        self.port = BasicParameter(None, 9192)
+        self.enabled = BasicParameter(None)
+        self.retain = BasicParameter(None)
+        self.ca_cert = LogParameter(self._log_dir, None, "daosCA.key")
+        self.server_cert = BasicParameter(None, "/etc/daos/certs/telemetryserver.crt")
+        self.server_key = BasicParameter(None, "/etc/daos/certs/telemetryserver.key")
+
+    def get_certificate_data(self, name_list):
+        """Get certificate data.
+
+        Args:
+            name_list (list): list of certificate attribute names.
+
+        Returns:
+            data (dict): a dictionary of parameter directory name keys and
+                value.
+
+        """
+        data = super().get_certificate_data(name_list)
+        return data
+
+    def _get_new(self):
+        """Get a new object based upon this one.
+
+        Returns:
+            DaosServerTelemtryCredentials: a new DaosServerTelemtryCredentials object
+        """
+        return DaosAgentTelemtryCredentials(self._log_dir)
 
 
 class DaosAgentYamlParameters(YamlParameters):
@@ -75,9 +114,6 @@ class DaosAgentYamlParameters(YamlParameters):
         self.exclude_fabric_ifaces = BasicParameter(None)
         self.cache_expiration = BasicParameter(None)
         self.disable_caching = BasicParameter(None)
-        self.telemetry_port = BasicParameter(None)
-        self.telemetry_enabled = BasicParameter(None)
-        self.telemetry_retain = BasicParameter(None)
 
     def update_log_file(self, name):
         """Update the log file name for the daos agent.

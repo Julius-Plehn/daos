@@ -125,5 +125,6 @@ func DefaultConfig() *Config {
 		LogLevel:         common.DefaultControlLogLevel,
 		TransportConfig:  security.DefaultAgentTransportConfig(),
 		CredentialConfig: &security.CredentialConfig{},
+		TelemetryConfig:  security.DefaultClientTelemetryConfig(),
 	}
 }
