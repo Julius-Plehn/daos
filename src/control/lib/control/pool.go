@@ -1111,22 +1111,77 @@ func processNVMeSpaceStats(log debugLogger, filterRank filterRankFn, nvmeControl
 	return nil
 }
 
-// Return the maximal SCM and NVMe size of a pool which could be created with all the storage nodes.
-func getMaxPoolSize(ctx context.Context, rpcClient UnaryInvoker, ranks ranklist.RankList) (uint64, uint64, error) {
-	// Verify that the DAOS system is ready before attempting to query storage.
-	if _, err := SystemQuery(ctx, rpcClient, &SystemQueryReq{}); err != nil {
-		return 0, 0, err
+func isMdOnSsdEnabled(hsm HostStorageMap) bool {
+	for _, hss := range hsm {
+		hs := hss.HostStorage
+		if hs == nil {
+			continue
+		}
+		nvme := hs.NvmeDevices
+		if nvme.Len() > 0 && !nvme[0].Roles().IsEmpty() {
+			return true
+		}
 	}
 
-	resp, err := StorageScan(ctx, rpcClient, &StorageScanReq{Usage: true})
-	if err != nil {
-		return 0, 0, err
+	return false
+}
+
+// Derive mem_size and data_size components using percentage of available ramdisk and SSD capacity.
+// The rationale for deriving space usage from ramdisk usage is that this is most likely to be the
+// limiting factor as opposed to SSD usage.
+// - Calculate mem_size as percentage of ramdisk/tmpfs free capacity.
+// - Calculate meta_size as mem_size/mem-ratio.
+// - When calculating data_size in pool…
+//   - Subtract meta_size from free blobstore space if an SSD shares META+DATA roles
+//   - Subtract WAL size from free blobstore space if an SSD shares META+WAL roles
+//   - Take percentage of remainder
+func getMaxPoolSizeMdOnSsd(ctx context.Context, rpcClient UnaryInvoker, ranks ranklist.RankList, resp *StorageScanResp) (uint64, uint64, error) {
+	// Generate function to verify a rank is in the provided rank slice.
+	filterRank := newFilterRankFunc(ranks)
+	rankNVMeFreeSpace := make(rankFreeSpaceMap)
+	scmBytes := uint64(math.MaxUint64)
+	for _, key := range resp.HostStorage.Keys() {
+		hostStorage := resp.HostStorage[key].HostStorage
+
+		if hostStorage.ScmNamespaces.Usable() == 0 {
+			return 0, 0, errors.Errorf("Host without SCM storage: hostname=%s",
+				resp.HostStorage[key].HostSet.String())
+		}
+
+		sb, err := processSCMSpaceStats(rpcClient, filterRank, hostStorage.ScmNamespaces, rankNVMeFreeSpace)
+		if err != nil {
+			return 0, 0, err
+		}
+		rpcClient.Debugf("scm nss: %+v, usable: %s, space stats: %+v",
+			hostStorage.ScmNamespaces, hostStorage.ScmNamespaces.Usable(), sb)
+
+		if scmBytes > sb {
+			scmBytes = sb
+		}
+
+		if err := processNVMeSpaceStats(rpcClient, filterRank, hostStorage.NvmeDevices, rankNVMeFreeSpace); err != nil {
+			return 0, 0, err
+		}
 	}
 
-	if len(resp.HostStorage) == 0 {
-		return 0, 0, errors.New("Empty host storage response from StorageScan")
+	if scmBytes == math.MaxUint64 {
+		return 0, 0, errors.Errorf("No SCM storage space available with rank list %s", ranks)
 	}
 
+	nvmeBytes := uint64(math.MaxUint64)
+	for _, nvmeRankBytes := range rankNVMeFreeSpace {
+		if nvmeBytes > nvmeRankBytes {
+			nvmeBytes = nvmeRankBytes
+		}
+	}
+
+	rpcClient.Debugf("Maximal size of a pool: scmBytes=%s (%d B) nvmeBytes=%s (%d B)",
+		humanize.Bytes(scmBytes), scmBytes, humanize.Bytes(nvmeBytes), nvmeBytes)
+
+	return scmBytes, nvmeBytes, nil
+}
+
+func getMaxPoolSizePMem(ctx context.Context, rpcClient UnaryInvoker, ranks ranklist.RankList, resp *StorageScanResp) (uint64, uint64, error) {
 	// Generate function to verify a rank is in the provided rank slice.
 	filterRank := newFilterRankFunc(ranks)
 	rankNVMeFreeSpace := make(rankFreeSpaceMap)
@@ -1168,4 +1223,27 @@ func getMaxPoolSize(ctx context.Context, rpcClient UnaryInvoker, ranks ranklist.
 		humanize.Bytes(scmBytes), scmBytes, humanize.Bytes(nvmeBytes), nvmeBytes)
 
 	return scmBytes, nvmeBytes, nil
+}
+
+// Return the maximal SCM and NVMe size of a pool which could be created with all the storage nodes.
+func getMaxPoolSize(ctx context.Context, rpcClient UnaryInvoker, ranks ranklist.RankList) (uint64, uint64, error) {
+	// Verify that the DAOS system is ready before attempting to query storage.
+	if _, err := SystemQuery(ctx, rpcClient, &SystemQueryReq{}); err != nil {
+		return 0, 0, err
+	}
+
+	resp, err := StorageScan(ctx, rpcClient, &StorageScanReq{Usage: true})
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if len(resp.HostStorage) == 0 {
+		return 0, 0, errors.New("Empty host storage response from StorageScan")
+	}
+
+	if isMdOnSsdEnabled(resp.HostStorage) {
+		return getMaxPoolSizeMdOnSsd(ctx, rpcClient, ranks, resp)
+	}
+
+	return getMaxPoolSizePMem(ctx, rpcClient, ranks, resp)
 }
