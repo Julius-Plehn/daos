@@ -36,6 +36,11 @@ const (
 	relConfExamplesPath = "../utils/config/examples/"
 )
 
+// SupportConfig is defined here to avoid a import cycle
+type SupportConfig struct {
+	FileTransferExec string `yaml:"file_transfer_exec,omitempty"`
+}
+
 // Server describes configuration options for DAOS control plane.
 // See utils/config/daos_server.yml for parameter descriptions.
 type Server struct {
@@ -59,6 +64,7 @@ type Server struct {
 	TelemetryConfig   *security.TelemetryConfig `yaml:"telemetry_config"`
 	CoreDumpFilter    uint8                     `yaml:"core_dump_filter,omitempty"`
 	ClientEnvVars     []string                  `yaml:"client_env_vars,omitempty"`
+	SupportConfig     SupportConfig             `yaml:"support_config,omitempty"`
 
 	// duplicated in engine.Config
 	SystemName string              `yaml:"name"`
