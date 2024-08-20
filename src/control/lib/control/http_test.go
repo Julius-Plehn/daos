@@ -1,5 +1,5 @@
 //
-// (C) Copyright 2021-2022 Intel Corporation.
+// (C) Copyright 2021-2024 Intel Corporation.
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 //
@@ -123,14 +123,17 @@ func newErrMockReadCloser(err error) *mockReadCloser {
 
 func TestControl_httpGetBody(t *testing.T) {
 	defaultURL := &url.URL{Host: "testhost"}
+	defaultAllowInsecure := true
 
 	for name, tc := range map[string]struct {
-		url       *url.URL
-		timeout   time.Duration
-		cancelCtx bool
-		getFn     httpGetFn
-		expResult []byte
-		expErr    error
+		url           *url.URL
+		timeout       time.Duration
+		cancelCtx     bool
+		getFn         httpGetFn
+		allowInsecure *bool
+		caCertPath    *string
+		expResult     []byte
+		expErr        error
 	}{
 		"nil url": {
 			expErr: errors.New("nil URL"),
@@ -229,7 +232,9 @@ func TestControl_httpGetBody(t *testing.T) {
 				tc.timeout = time.Second
 			}
 
-			result, err := httpGetBody(ctx, tc.url, tc.getFn, tc.timeout)
+			tc.allowInsecure = &defaultAllowInsecure
+
+			result, err := httpGetBody(ctx, tc.url, tc.getFn, tc.timeout, tc.allowInsecure, tc.caCertPath)
 
 			test.CmpErr(t, tc.expErr, err)
 			if diff := cmp.Diff(tc.expResult, result); diff != "" {
@@ -247,6 +252,7 @@ type mockHTTPGetter struct {
 	getBodyErr      error
 	getBodyCalled   uint
 	getBodyFailures uint
+	caCertPath      *string
 }
 
 func (r *mockHTTPGetter) canRetry(err error, cur uint) bool {
@@ -271,6 +277,15 @@ func (r *mockHTTPGetter) getURL() *url.URL {
 		Scheme: "http",
 		Host:   "testhost",
 	}
+}
+
+func (r *mockHTTPGetter) getAllowInsecure() *bool {
+	mode := true
+	return &mode
+}
+
+func (r *mockHTTPGetter) getCaCertPath() *string {
+	return r.caCertPath
 }
 
 func (r *mockHTTPGetter) getBody(ctx context.Context) ([]byte, error) {

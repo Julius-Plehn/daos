@@ -70,7 +70,9 @@ func TestPromExp_StartExporter(t *testing.T) {
 
 			if tc.cfg != nil {
 				tc.cfg.Title = t.Name()
+				tc.cfg.Mode = true
 			}
+
 			cleanup, err := promexp.StartExporter(test.Context(t), log, tc.cfg)
 			test.CmpErr(t, tc.expErr, err)
 			if tc.expErr != nil {
@@ -87,7 +89,7 @@ func TestPromExp_StartExporter(t *testing.T) {
 					break
 				}
 				log.Errorf("failed to connect to exporter: %+v", err)
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(10 * time.Millisecond)
 			}
 
 			body, err := io.ReadAll(resp.Body)

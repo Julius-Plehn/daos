@@ -87,7 +87,6 @@ control_log_mask: gandalf
 transport_config:
   allow_insecure: true
 `)
-
 	for name, tc := range map[string]struct {
 		path      string
 		expResult *Config
@@ -122,6 +121,7 @@ transport_config:
 					AllowInsecure:     true,
 					CertificateConfig: DefaultConfig().TransportConfig.CertificateConfig,
 				},
+				TelemetryConfig: security.DefaultClientTelemetryConfig(),
 			},
 		},
 		"bad log mask": {
@@ -154,6 +154,7 @@ transport_config:
 					AllowInsecure:     true,
 					CertificateConfig: DefaultConfig().TransportConfig.CertificateConfig,
 				},
+				TelemetryConfig:     security.DefaultClientTelemetryConfig(),
 				ExcludeFabricIfaces: common.NewStringSet("ib3"),
 				FabricInterfaces: []*NUMAFabricConfig{
 					{

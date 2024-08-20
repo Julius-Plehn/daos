@@ -259,9 +259,8 @@
 ## Enable Telemetry HTTP/HTTPS endpoint for remote telemetry collection.
 #
 #telemetry_config:
-#  # In order to disable transport security, uncomment and set allow_insecure
-#  # to true. Not recommended for production configurations.
-#  allow_insecure: false
+#  # In order to disable telemetry security, uncomment and set allow_insecure to false
+#  allow_insecure: true
 #
 #  # Set the telemetry endpoint port number
 #  # default: 9191

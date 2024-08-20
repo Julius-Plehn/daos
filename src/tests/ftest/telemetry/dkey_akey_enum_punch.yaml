@@ -18,12 +18,3 @@ server_config:
 pool:
   scm_size: 1G
   control_method: dmg
-agent_config:
-  telemetry_config:
-    allow_insecure: true
-    port: 9192
-    retain: 30s
-    enabled: true
-dmg:
-  telemetry_config:
-    allow_insecure: true

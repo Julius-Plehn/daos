@@ -312,6 +312,12 @@ func (cfg *Server) WithTelemetryPort(port int) *Server {
 	return cfg
 }
 
+// WithTelemetryConfig sets the telemetry configuration.
+func (cfg *Server) WithTelemetryConfig(cfgTelemetry *security.TelemetryConfig) *Server {
+	cfg.TelemetryConfig = cfgTelemetry
+	return cfg
+}
+
 // DefaultServer creates a new instance of configuration struct
 // populated with defaults.
 func DefaultServer() *Server {
@@ -321,6 +327,7 @@ func DefaultServer() *Server {
 		AccessPoints:      []string{fmt.Sprintf("localhost:%d", build.DefaultControlPort)},
 		ControlPort:       build.DefaultControlPort,
 		TransportConfig:   security.DefaultServerTransportConfig(),
+		TelemetryConfig:   security.DefaultClientTelemetryConfig(),
 		Hyperthreads:      false,
 		SystemRamReserved: storage.DefaultSysMemRsvd / humanize.GiByte,
 		Path:              defaultConfigPath,
@@ -692,8 +699,12 @@ func (cfg *Server) Validate(log logging.Logger) (err error) {
 		return FaultConfigNoProvider
 	case cfg.ControlPort <= 0:
 		return FaultConfigBadControlPort
-	case cfg.TelemetryConfig.Port < 0:
-		return FaultConfigBadTelemetryPort
+	}
+
+	if cfg.TelemetryConfig != nil {
+		if cfg.TelemetryConfig.Port < 0 {
+			return FaultConfigBadTelemetryPort
+		}
 	}
 
 	for idx, ec := range cfg.Engines {
