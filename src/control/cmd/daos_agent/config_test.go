@@ -87,6 +87,63 @@ control_log_mask: gandalf
 transport_config:
   allow_insecure: true
 `)
+
+	telemetryRetainWithBadPort := test.CreateTestFile(t, dir, `
+name: shire
+access_points: ["one:10001", "two:10001"]
+port: 4242
+runtime_dir: /tmp/runtime
+log_file: /home/frodo/logfile
+control_log_mask: debug
+transport_config:
+  allow_insecure: true
+telemetry_config:
+  retain: 1
+  port: 0
+`)
+
+	telemetryEnabledWithBadPort := test.CreateTestFile(t, dir, `
+name: shire
+access_points: ["one:10001", "two:10001"]
+port: 4242
+runtime_dir: /tmp/runtime
+log_file: /home/frodo/logfile
+control_log_mask: debug
+transport_config:
+  allow_insecure: true
+telemetry_config:
+  enabled: true
+  port: 0
+`)
+
+	telemetryWithoutServerCert := test.CreateTestFile(t, dir, `
+name: shire
+access_points: ["one:10001", "two:10001"]
+port: 4242
+runtime_dir: /tmp/runtime
+log_file: /home/frodo/logfile
+control_log_mask: debug
+transport_config:
+  allow_insecure: true
+telemetry_config:
+  allow_insecure: false
+  server_cert: ""
+`)
+
+	telemetryWithoutServerKey := test.CreateTestFile(t, dir, `
+name: shire
+access_points: ["one:10001", "two:10001"]
+port: 4242
+runtime_dir: /tmp/runtime
+log_file: /home/frodo/logfile
+control_log_mask: debug
+transport_config:
+  allow_insecure: true
+telemetry_config:
+  allow_insecure: false
+  server_key: ""
+`)
+
 	for name, tc := range map[string]struct {
 		path      string
 		expResult *Config
@@ -106,6 +163,22 @@ transport_config:
 		"empty config file": {
 			path:      emptyFile,
 			expResult: DefaultConfig(),
+		},
+		"telemetry retain with no port": {
+			path:   telemetryRetainWithBadPort,
+			expErr: errors.New("Under telemetry_config, retain requires port"),
+		},
+		"telemetry enabled with no port": {
+			path:   telemetryEnabledWithBadPort,
+			expErr: errors.New("Under telemetry_config, enabled requires port"),
+		},
+		"telemetry secure with no server certificate": {
+			path:   telemetryWithoutServerCert,
+			expErr: errors.New("Under telemetry_config, server_cert and server_key required"),
+		},
+		"telemetry secure with no server key": {
+			path:   telemetryWithoutServerKey,
+			expErr: errors.New("Under telemetry_config, server_cert and server_key required"),
 		},
 		"without optional items": {
 			path: withoutOptCfg,
