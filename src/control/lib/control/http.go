@@ -130,9 +130,12 @@ func httpGetBodyRetry(ctx context.Context, req httpGetter) ([]byte, error) {
 
 // httpsGetFunc will prepare the GET requested using the certificate for secure mode
 // and return the http.Get
-func httpsGetFunc(cert []byte) httpGetFn {
+func httpsGetFunc(cert []byte) (httpGetFn, error) {
 	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(cert)
+	result := caCertPool.AppendCertsFromPEM(cert)
+	if !result {
+		return nil, errors.New("failed to parse root certificate")
+	}
 
 	tlsConfig := &tls.Config{
 		RootCAs: caCertPool,
@@ -144,7 +147,7 @@ func httpsGetFunc(cert []byte) httpGetFn {
 
 	client := &http.Client{Transport: tr}
 
-	return client.Get
+	return client.Get, nil
 }
 
 // httpGetBody executes a simple HTTP GET request to a given URL and returns the
@@ -163,11 +166,19 @@ func httpGetBody(ctx context.Context, url *url.URL, get httpGetFn, timeout time.
 	}
 
 	if *allowInsecure == false {
+		if cacertpath == nil {
+			return nil, errors.New("Provide the CA certificate path")
+		}
+
 		cert, err := ioutil.ReadFile(*cacertpath)
 		if err != nil {
-			return nil, errors.Wrap(err, "reading file Error")
+			return nil, errors.Wrap(err, "reading CA cerificate file Error")
 		}
-		get = httpsGetFunc(cert)
+
+		get, err = httpsGetFunc(cert)
+		if err != nil {
+			return nil, errors.Wrap(err, "https GET request failed")
+		}
 	}
 
 	httpCtx, cancel := context.WithTimeout(ctx, timeout)

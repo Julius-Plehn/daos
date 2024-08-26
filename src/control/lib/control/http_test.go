@@ -124,6 +124,9 @@ func newErrMockReadCloser(err error) *mockReadCloser {
 func TestControl_httpGetBody(t *testing.T) {
 	defaultURL := &url.URL{Host: "testhost"}
 	defaultAllowInsecure := true
+	falseAllowInsecure := false
+	badCertPerm := "../../security/testdata/certs/badperms.crt"
+	badCertPath := "wrongpath/notavailable.crt"
 
 	for name, tc := range map[string]struct {
 		url           *url.URL
@@ -139,22 +142,26 @@ func TestControl_httpGetBody(t *testing.T) {
 			expErr: errors.New("nil URL"),
 		},
 		"empty URL": {
-			url:    &url.URL{},
-			expErr: errors.New("host address is required"),
+			url:           &url.URL{},
+			allowInsecure: &defaultAllowInsecure,
+			expErr:        errors.New("host address is required"),
 		},
 		"nil getFn": {
-			url:    defaultURL,
-			expErr: errors.New("nil get function"),
+			url:           defaultURL,
+			allowInsecure: &defaultAllowInsecure,
+			expErr:        errors.New("nil get function"),
 		},
 		"getFn error": {
-			url: defaultURL,
+			url:           defaultURL,
+			allowInsecure: &defaultAllowInsecure,
 			getFn: func(_ string) (*http.Response, error) {
 				return nil, errors.New("mock getFn")
 			},
 			expErr: errors.New("mock getFn"),
 		},
 		"http.Response error": {
-			url: defaultURL,
+			url:           defaultURL,
+			allowInsecure: &defaultAllowInsecure,
 			getFn: func(_ string) (*http.Response, error) {
 				return &http.Response{
 					StatusCode: http.StatusNotFound,
@@ -164,7 +171,8 @@ func TestControl_httpGetBody(t *testing.T) {
 			expErr: errors.New("HTTP response error: 404 Not Found"),
 		},
 		"empty body": {
-			url: defaultURL,
+			url:           defaultURL,
+			allowInsecure: &defaultAllowInsecure,
 			getFn: func(_ string) (*http.Response, error) {
 				return &http.Response{
 					StatusCode: http.StatusOK,
@@ -174,7 +182,8 @@ func TestControl_httpGetBody(t *testing.T) {
 			expResult: []byte{},
 		},
 		"success with body": {
-			url: defaultURL,
+			url:           defaultURL,
+			allowInsecure: &defaultAllowInsecure,
 			getFn: func(_ string) (*http.Response, error) {
 				return &http.Response{
 					StatusCode: http.StatusOK,
@@ -183,8 +192,44 @@ func TestControl_httpGetBody(t *testing.T) {
 			},
 			expResult: []byte("this is the body of an HTTP response"),
 		},
+		"failure with body in secure mode without CA certificate path": {
+			url:           defaultURL,
+			allowInsecure: &falseAllowInsecure,
+			getFn: func(_ string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       newMockReadCloser("this is the body of an HTTP response"),
+				}, nil
+			},
+			expErr: errors.New("Provide the CA certificate path"),
+		},
+		"failure with body in secure mode with bad CA certificate": {
+			url:           defaultURL,
+			allowInsecure: &falseAllowInsecure,
+			caCertPath:    &badCertPerm,
+			getFn: func(_ string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       newMockReadCloser("this is the body of an HTTP response"),
+				}, nil
+			},
+			expErr: errors.New("Get \"//testhost\": unsupported protocol scheme"),
+		},
+		"failure with body in secure mode with bad CA certificate path": {
+			url:           defaultURL,
+			allowInsecure: &falseAllowInsecure,
+			caCertPath:    &badCertPath,
+			getFn: func(_ string) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       newMockReadCloser("this is the body of an HTTP response"),
+				}, nil
+			},
+			expErr: errors.New("reading CA cerificate file Error: open wrongpath/notavailable.crt: no such file or directory"),
+		},
 		"reading body fails": {
-			url: defaultURL,
+			url:           defaultURL,
+			allowInsecure: &defaultAllowInsecure,
 			getFn: func(_ string) (*http.Response, error) {
 				return &http.Response{
 					StatusCode: http.StatusOK,
@@ -194,8 +239,9 @@ func TestControl_httpGetBody(t *testing.T) {
 			expErr: errors.New("reading HTTP response body: mock Read"),
 		},
 		"request times out": {
-			url:     defaultURL,
-			timeout: 5 * time.Millisecond,
+			url:           defaultURL,
+			allowInsecure: &defaultAllowInsecure,
+			timeout:       5 * time.Millisecond,
 			getFn: func(_ string) (*http.Response, error) {
 				time.Sleep(1 * time.Second)
 				return &http.Response{
@@ -206,8 +252,9 @@ func TestControl_httpGetBody(t *testing.T) {
 			expErr: HTTPReqTimedOut(defaultURL.String()),
 		},
 		"request canceled": {
-			url:       defaultURL,
-			cancelCtx: true,
+			url:           defaultURL,
+			allowInsecure: &defaultAllowInsecure,
+			cancelCtx:     true,
 			getFn: func(_ string) (*http.Response, error) {
 				time.Sleep(1 * time.Second)
 				return &http.Response{
@@ -231,8 +278,6 @@ func TestControl_httpGetBody(t *testing.T) {
 			if tc.timeout == 0 {
 				tc.timeout = time.Second
 			}
-
-			tc.allowInsecure = &defaultAllowInsecure
 
 			result, err := httpGetBody(ctx, tc.url, tc.getFn, tc.timeout, tc.allowInsecure, tc.caCertPath)
 
