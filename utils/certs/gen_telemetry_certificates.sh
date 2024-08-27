@@ -18,7 +18,6 @@ By default [DIR] is the current directory.
 DAYS=1095
 
 CA_HOME=$1
-CERTS="${CA_HOME}/certs"
 PRIVATE="${CA_HOME}"
 HOSTNAME=$(hostname -s)
 USER=$2

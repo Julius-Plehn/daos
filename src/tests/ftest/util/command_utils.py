@@ -1077,8 +1077,7 @@ class YamlCommand(SubProcessCommand):
             self.log.debug(
                 "Copied certificates for %s (in %s):",
                 self._command, ", ".join(names))
-            for line in get_file_listing(hosts, names).stdout_text.splitlines():
-                self.log.debug("  %s", line)
+            get_file_listing(hosts, names, self.run_user).log_output(self.log)
 
     def generate_telemetry_certificates(self, hosts, user):
         """Generate the certificates for the test.
