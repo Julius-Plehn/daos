@@ -1207,3 +1207,21 @@ def check_ssh(log, hosts, cmd_timeout=60, verbose=True):
     """
     result = run_remote(log, hosts, "uname", timeout=cmd_timeout, verbose=verbose)
     return result.passed
+
+
+def find_library(name):
+    """Find a library by a given name.
+
+    Checks in LD_LIBRARY_PATH.
+
+    Args:
+        name (str): library name to find
+
+    Returns:
+        str: directory path containing the library. None if not found
+    """
+    ld_library_path = os.environ.get("LD_LIBRARY_PATH", "")
+    for path in ld_library_path.split(":"):
+        if os.path.exists(os.path.join(path, name)):
+            return path
+    return None
