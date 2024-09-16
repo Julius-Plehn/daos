@@ -92,7 +92,6 @@ class NvmeFaultReintegrate(TestWithServers):
             10. Drive status LED should be off indicating good device is plugged-in.
 
         :avocado: tags=all,manual
-        :avocado: tags=hw,medium
         :avocado: tags=vmd,vmd_led
         :avocado: tags=NvmeFaultReintegrate,test_nvme_fault_reintegration
 

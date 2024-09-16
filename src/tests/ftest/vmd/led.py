@@ -1,5 +1,5 @@
 """
-  (C) Copyright 2020-2023 Intel Corporation.
+  (C) Copyright 2020-2024 Intel Corporation.
 
   SPDX-License-Identifier: BSD-2-Clause-Patent
 """
@@ -77,7 +77,6 @@ class VmdLedStatus(OSAUtils):
         """Jira ID: DAOS-11290
 
         :avocado: tags=all,manual
-        :avocado: tags=hw,medium
         :avocado: tags=vmd,vmd_led
         :avocado: tags=VmdLedStatus,test_vmd_led_status
         """
@@ -98,7 +97,6 @@ class VmdLedStatus(OSAUtils):
         """Jira ID: DAOS-11290
 
         :avocado: tags=all,manual
-        :avocado: tags=hw,medium
         :avocado: tags=vmd,vmd_led
         :avocado: tags=VmdLedStatus,test_vmd_led_faulty
         """
