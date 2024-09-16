@@ -104,3 +104,11 @@ dcp:
     np: 16
 hdf5_vol:
   plugin_path: /usr/lib64/mpich/lib
+
+io_sys_admin:
+  # Toggle independent steps
+  run_step_pool_create_ownership: True
+  run_step_storage_system_query: True
+  run_step_io: True
+  run_step_snapshot: True
+  run_test_datamover: True
